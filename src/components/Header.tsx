@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { ShoppingBag, ShieldCheck, User, Code2, Menu, X, Sparkles } from 'lucide-react';
+import { ShoppingBag, User, Menu, X, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 interface HeaderProps {
   currentView: 'shop' | 'admin' | 'product_detail';
   onNavigate: (view: 'shop' | 'admin') => void;
   onOpenAuth: () => void;
-  onOpenExportGuide: () => void;
   activeCategory: string;
   onSelectCategory: (cat: string) => void;
   isAdminLoggedIn: boolean;
@@ -14,10 +13,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  currentView,
   onNavigate,
   onOpenAuth,
-  onOpenExportGuide,
   onSelectCategory,
   isAdminLoggedIn,
   currentUserEmail,
@@ -84,41 +81,32 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-3 flex-1 justify-end min-w-0">
-          {/* Developer / Next.js Guide */}
-          <button
-            id="open-nextjs-guide-btn"
-            onClick={onOpenExportGuide}
-            title="View Next.js Architecture & Supabase SQL"
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 text-[11px] tracking-wider uppercase border border-[#D4D4D4] rounded-sm text-[#404040] hover:bg-[#F0F0F0] hover:text-[#111111] transition-all"
-          >
-            <Code2 size={13} />
-            <span>Next.js Code & SQL</span>
-          </button>
-
-          {/* Admin Dashboard link (desktop only to prevent mobile overlap) */}
-          <button
-            id="header-admin-btn"
-            onClick={() => onNavigate(currentView === 'admin' ? 'shop' : 'admin')}
-            title={isAdminLoggedIn ? 'Admin Dashboard (Active)' : 'Admin Login'}
-            className={`hidden sm:flex p-1.5 sm:p-2 rounded-full border transition-all ${
-              currentView === 'admin'
-                ? 'bg-[#111111] text-[#FAFAFA] border-[#111111]'
-                : 'border-[#E5E5E5] text-[#404040] hover:text-[#111111] hover:border-[#111111]'
-            }`}
-          >
-            <ShieldCheck size={18} />
-          </button>
-
-          {/* User Account */}
+        {/* Right: Profile & Cart Actions only */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-end min-w-0">
+          {/* User Account / Profile */}
           <button
             id="header-auth-btn"
             onClick={onOpenAuth}
-            title={currentUserEmail ? `Signed in as ${currentUserEmail}` : 'Customer Sign In'}
-            className="p-1.5 sm:p-2 rounded-full border border-[#E5E5E5] text-[#404040] hover:text-[#111111] hover:border-[#111111] transition-all"
+            title={
+              currentUserEmail
+                ? isAdminLoggedIn
+                  ? `Administrator: ${currentUserEmail}`
+                  : `Signed in as ${currentUserEmail}`
+                : 'Account Sign In / Register'
+            }
+            className={`relative p-2 sm:p-2.5 rounded-full border transition-all flex items-center justify-center ${
+              currentUserEmail
+                ? isAdminLoggedIn
+                  ? 'border-[#C5A059] text-[#111111] bg-[#C5A059]/10'
+                  : 'border-[#111111] text-[#111111] bg-white'
+                : 'border-[#E5E5E5] text-[#404040] hover:text-[#111111] hover:border-[#111111] bg-white'
+            }`}
+            aria-label="User account"
           >
             <User size={18} />
+            {isAdminLoggedIn && (
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#C5A059] border-2 border-white rounded-full" />
+            )}
           </button>
 
           {/* Cart Bag Icon with badge */}
@@ -170,16 +158,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Sparkles size={14} className="text-[#C5A059]" />
               New Arrivals
-            </button>
-            <button
-              onClick={() => {
-                onNavigate(currentView === 'admin' ? 'shop' : 'admin');
-                setMobileMenuOpen(false);
-              }}
-              className="text-left text-sm py-1 text-[#525252] hover:text-[#111111] flex items-center gap-2"
-            >
-              <ShieldCheck size={14} className="text-[#C5A059]" />
-              <span>{isAdminLoggedIn ? 'Admin Dashboard (Active)' : 'Admin Login'}</span>
             </button>
           </div>
         </div>

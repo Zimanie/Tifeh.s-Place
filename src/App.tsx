@@ -10,11 +10,12 @@ import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AuthModal } from './components/AuthModal';
-import { NextJsExportGuide } from './components/NextJsExportGuide';
+import { UserProfileModal } from './components/UserProfileModal';
 import { Footer } from './components/Footer';
 import { Product, Order } from './types';
 import { productService } from './lib/supabase';
-import { MessageCircle, ShoppingBag, Check, Sparkles } from 'lucide-react';
+import { UserSession, getStoredSession, saveSession, clearSession } from './lib/auth';
+import { MessageCircle } from 'lucide-react';
 import { formatNaira } from './lib/format';
 
 function ShopContent() {
@@ -26,11 +27,10 @@ function ShopContent() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc' | 'newest'>('featured');
 
-  // Modals & Authentication
+  // Unified Authentication Session
+  const [session, setSession] = useState<UserSession | null>(() => getStoredSession());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isExportGuideOpen, setIsExportGuideOpen] = useState(false);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const { isCheckoutOpen, closeCheckout, lastAddedItem, dismissToast } = useCart();
 
@@ -91,23 +91,30 @@ function ShopContent() {
     console.log('Order registered successfully:', newOrder.id);
   };
 
-  const handleAdminLogin = (email: string) => {
-    setIsAdminLoggedIn(true);
-    setCurrentUserEmail(email);
-    setCurrentView('admin');
-  };
+  const handleLoginSuccess = (
+    email: string,
+    isAdmin: boolean,
+    name?: string,
+    provider: 'email' | 'google' = 'email'
+  ) => {
+    const newSession: UserSession = {
+      email,
+      name: name || email.split('@')[0],
+      isAdmin,
+      provider,
+    };
+    saveSession(newSession);
+    setSession(newSession);
 
-  const handleAdminLogout = () => {
-    setIsAdminLoggedIn(false);
-    setCurrentView('shop');
-  };
-
-  const handleCustomerLogin = (email: string, isAdmin: boolean) => {
-    setCurrentUserEmail(email);
     if (isAdmin) {
-      setIsAdminLoggedIn(true);
       setCurrentView('admin');
     }
+  };
+
+  const handleSignOut = () => {
+    clearSession();
+    setSession(null);
+    setCurrentView('shop');
   };
 
   return (
@@ -116,16 +123,21 @@ function ShopContent() {
       <Header
         currentView={currentView}
         onNavigate={(view) => setCurrentView(view)}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onOpenExportGuide={() => setIsExportGuideOpen(true)}
+        onOpenAuth={() => {
+          if (session) {
+            setIsProfileModalOpen(true);
+          } else {
+            setIsAuthModalOpen(true);
+          }
+        }}
         activeCategory={activeCategory}
         onSelectCategory={(cat) => {
           setActiveCategory(cat);
           const el = document.getElementById('catalog-section');
           if (el) el.scrollIntoView({ behavior: 'smooth' });
         }}
-        isAdminLoggedIn={isAdminLoggedIn}
-        currentUserEmail={currentUserEmail}
+        isAdminLoggedIn={Boolean(session?.isAdmin)}
+        currentUserEmail={session ? session.email : null}
       />
 
       {/* Main Content Router: Shop vs Admin */}
@@ -135,9 +147,10 @@ function ShopContent() {
             setCurrentView('shop');
             loadProducts(); // refresh catalog when coming back
           }}
-          isAdminLoggedIn={isAdminLoggedIn}
-          onAdminLogin={handleAdminLogin}
-          onAdminLogout={handleAdminLogout}
+          isAdminLoggedIn={Boolean(session?.isAdmin)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onAdminLogout={handleSignOut}
+          adminEmail={session?.email}
         />
       ) : (
         <main className="flex-1">
@@ -246,20 +259,21 @@ function ShopContent() {
         onClose={() => setSelectedProduct(null)}
       />
 
-      {/* Customer & Admin Auth Modal */}
+      {/* Unified Customer & Admin Auth Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        onLoginSuccess={handleCustomerLogin}
-        onGoToAdminLogin={() => {
-          setCurrentView('admin');
-        }}
+        onLoginSuccess={handleLoginSuccess}
       />
 
-      {/* Next.js & Supabase Code Export Guide Modal */}
-      <NextJsExportGuide
-        isOpen={isExportGuideOpen}
-        onClose={() => setIsExportGuideOpen(false)}
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        session={session}
+        onSignOut={handleSignOut}
+        currentView={currentView}
+        onNavigate={(view) => setCurrentView(view)}
       />
 
       {/* Floating WhatsApp Concierge Button */}

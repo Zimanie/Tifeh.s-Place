@@ -21,21 +21,18 @@ import { formatNaira, formatDate } from '../lib/format';
 interface AdminDashboardProps {
   onBackToShop: () => void;
   isAdminLoggedIn: boolean;
-  onAdminLogin: (email: string) => void;
+  onOpenAuth: () => void;
   onAdminLogout: () => void;
+  adminEmail?: string | null;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onBackToShop,
   isAdminLoggedIn,
-  onAdminLogin,
+  onOpenAuth,
   onAdminLogout,
+  adminEmail,
 }) => {
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('admin@tifehsplace.ng');
-  const [loginPassword, setLoginPassword] = useState('tifehadmin2025');
-  const [loginError, setLoginError] = useState('');
-
   // Dashboard views: 'products' | 'orders'
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
 
@@ -80,18 +77,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       loadData();
     }
   }, [isAdminLoggedIn]);
-
-  // Handle Admin Login
-  const handleLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginEmail.includes('@') || loginPassword.length < 4) {
-      setLoginError('Please enter valid admin credentials.');
-      return;
-    }
-    // Allow any admin-like credential or demo credentials
-    onAdminLogin(loginEmail);
-    setLoginError('');
-  };
 
   // Handle Create Product
   const handleCreateProduct = async (e: React.FormEvent) => {
@@ -161,74 +146,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // If not logged in, render the /admin/login gate
+  // If not logged in as admin, show access guard directing to the unified profile login
   if (!isAdminLoggedIn) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-4 bg-[#FAFAFA]">
-        <div className="w-full max-w-md bg-white border border-[#E5E5E5] p-8 shadow-sm">
-          <div className="text-center mb-6">
-            <div className="inline-flex p-3 bg-[#111111] text-[#FAFAFA] rounded-full mb-3">
-              <ShieldCheck size={24} />
-            </div>
-            <h2 className="text-2xl font-serif text-[#111111]">Tifeh.s Place Admin</h2>
-            <p className="text-xs text-[#737373] mt-1 uppercase tracking-wider">
-              Management Portal • /admin/login
-            </p>
+      <div className="min-h-[75vh] flex items-center justify-center p-4 bg-[#FAFAFA]">
+        <div className="w-full max-w-md bg-white border border-[#E5E5E5] p-8 shadow-sm text-center">
+          <div className="inline-flex p-3.5 bg-[#111111] text-[#FAFAFA] rounded-full mb-4">
+            <ShieldCheck size={28} className="text-[#C5A059]" />
           </div>
+          <span className="text-[10px] uppercase tracking-[0.25em] text-[#737373] font-semibold block mb-1">
+            Restricted Atelier Portal
+          </span>
+          <h2 className="text-2xl font-serif text-[#111111] mb-2">Administrator Access Only</h2>
+          <p className="text-xs text-[#737373] leading-relaxed mb-6">
+            The management console requires authentication with your authorized admin Gmail. Please sign in via the profile icon in the navigation bar.
+          </p>
 
-          {loginError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs">
-              {loginError}
-            </div>
-          )}
-
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-[#111111] font-medium mb-1">
-                Admin Email
-              </label>
-              <input
-                id="admin-login-email-input"
-                type="email"
-                required
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full px-3 py-2 bg-[#FAFAFA] border border-[#E5E5E5] text-xs focus:outline-none focus:border-[#111111]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-[#111111] font-medium mb-1">
-                Password
-              </label>
-              <input
-                id="admin-login-password-input"
-                type="password"
-                required
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full px-3 py-2 bg-[#FAFAFA] border border-[#E5E5E5] text-xs focus:outline-none focus:border-[#111111]"
-              />
-            </div>
-
+          <div className="space-y-3">
             <button
-              id="admin-login-submit-btn"
-              type="submit"
-              className="w-full py-3 bg-[#111111] text-[#FAFAFA] text-xs uppercase tracking-[0.2em] font-medium hover:bg-black transition-all"
+              onClick={onOpenAuth}
+              className="w-full py-3 bg-[#111111] text-[#FAFAFA] text-xs uppercase tracking-[0.2em] font-medium hover:bg-black transition-all flex items-center justify-center gap-2"
             >
-              Sign In To Admin Dashboard
+              <ShieldCheck size={14} className="text-[#C5A059]" />
+              <span>Sign In with Admin Gmail</span>
             </button>
-          </form>
-
-          <div className="mt-6 pt-4 border-t border-[#E5E5E5] flex items-center justify-between text-xs">
             <button
               onClick={onBackToShop}
-              className="text-[#737373] hover:text-[#111111] flex items-center gap-1"
+              className="w-full py-2.5 border border-[#E5E5E5] text-[#525252] hover:text-[#111111] hover:border-[#111111] text-xs uppercase tracking-wider font-medium transition-all flex items-center justify-center gap-2"
             >
               <ArrowLeft size={13} />
-              <span>Back to Store</span>
+              <span>Return to Boutique</span>
             </button>
-            <span className="text-[10px] text-[#A3A3A3]">Protected Route</span>
           </div>
         </div>
       </div>
