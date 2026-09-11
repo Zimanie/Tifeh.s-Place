@@ -1,0 +1,6 @@
+{
+  "name": "Tifeh's Place",
+  "description": "Clean, fast, and minimal e-commerce website for Nigerian luxury boutique Tifeh's Place featuring shoes, bags, jewelry, watches, and perfumes in NGN.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
