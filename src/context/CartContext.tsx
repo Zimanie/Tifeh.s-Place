@@ -16,8 +16,9 @@ interface CartContextType {
   isCheckoutOpen: boolean;
   openCheckout: () => void;
   closeCheckout: () => void;
-  lastAddedItem: { product: Product; size: string; color: string } | null;
+  lastAddedItem: { product: Product; size: string; color: string; timestamp?: number } | null;
   dismissToast: () => void;
+  cartBumpCount: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -39,7 +40,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [lastAddedItem, setLastAddedItem] = useState<{ product: Product; size: string; color: string } | null>(null);
+  const [lastAddedItem, setLastAddedItem] = useState<{ product: Product; size: string; color: string; timestamp?: number } | null>(null);
+  const [cartBumpCount, setCartBumpCount] = useState(0);
 
   // Sync with localStorage
   useEffect(() => {
@@ -76,8 +78,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    setLastAddedItem({ product, size, color });
-    setIsCartOpen(true);
+    setLastAddedItem({ product, size, color, timestamp: Date.now() });
+    setCartBumpCount((prev) => prev + 1);
+    // Note: Do NOT open cart drawer automatically; tiny bump effect sent to header cart
   };
 
   const removeFromCart = (productId: string, size: string, color: string) => {
@@ -145,6 +148,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         closeCheckout,
         lastAddedItem,
         dismissToast,
+        cartBumpCount,
       }}
     >
       {children}

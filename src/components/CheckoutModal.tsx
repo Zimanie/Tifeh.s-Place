@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { orderService } from '../lib/supabase';
 import { Order, OrderItem } from '../types';
 import { formatNaira } from '../lib/format';
-
+import { getBoutiqueWhatsAppNumber } from '../lib/config';
 import { UserSession } from '../lib/auth';
 
 interface CheckoutModalProps {
@@ -100,11 +100,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   const copyBankDetails = () => {
-    const text = `Tifeh's Place Bank Details:
-Bank: Guaranty Trust Bank (GTBank)
-Account Name: Tifeh's Place Enterprises
-Account Number: 0284918274
-Reference: ${completedOrder?.id || 'TIFEHS-ORDER'}`;
+    const text = `Tifeh's Place Order Confirmation:
+Reference: ${completedOrder?.id || 'TIFEHS-ORDER'}
+Customer: ${completedOrder?.customer_name || ''}
+Total Amount: ${completedOrder ? formatNaira(completedOrder.total_amount) : ''}
+Please send this reference to our WhatsApp concierge to receive payment verification.`;
     navigator.clipboard.writeText(text);
     setCopiedBankInfo(true);
     setTimeout(() => setCopiedBankInfo(false), 2500);
@@ -132,7 +132,8 @@ ${itemsList}
 
 Please confirm availability and share payment receipt instructions!`;
 
-    return `https://wa.me/2348120000000?text=${encodeURIComponent(msg)}`;
+    const boutiqueNumber = getBoutiqueWhatsAppNumber();
+    return `https://wa.me/${boutiqueNumber}?text=${encodeURIComponent(msg)}`;
   };
 
   return (
@@ -366,26 +367,22 @@ Please confirm availability and share payment receipt instructions!`;
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
-                    <span className="text-[#737373] text-[10px] uppercase tracking-wider block">Bank Name</span>
-                    <strong className="text-[#111111]">Guaranty Trust Bank (GTBank)</strong>
+                    <span className="text-[#737373] text-[10px] uppercase tracking-wider block">Order Reference</span>
+                    <strong className="text-[#111111] text-sm font-mono">{completedOrder.id}</strong>
                   </div>
                   <div>
-                    <span className="text-[#737373] text-[10px] uppercase tracking-wider block">Account Name</span>
-                    <strong className="text-[#111111]">Tifeh's Place Enterprises</strong>
+                    <span className="text-[#737373] text-[10px] uppercase tracking-wider block">Payment Method</span>
+                    <strong className="text-[#111111]">Direct Bank Transfer / WhatsApp Verification</strong>
                   </div>
-                  <div>
-                    <span className="text-[#737373] text-[10px] uppercase tracking-wider block">Account Number</span>
-                    <strong className="text-[#111111] text-base font-mono tracking-wider">0284918274</strong>
-                  </div>
-                  <div>
-                    <span className="text-[#737373] text-[10px] uppercase tracking-wider block">Amount to Transfer</span>
+                  <div className="sm:col-span-2 bg-[#FAF8F5] p-2.5 border border-[#EBE3D5]">
+                    <span className="text-[#737373] text-[10px] uppercase tracking-wider block">Amount Payable</span>
                     <strong className="text-[#C5A059] text-base font-bold">{formatNaira(completedOrder.total_amount)}</strong>
                   </div>
                 </div>
 
                 <div className="pt-2 text-[11px] text-[#737373] border-t border-[#F0F0F0] flex items-start gap-2">
                   <AlertCircle size={14} className="shrink-0 text-[#C5A059] mt-0.5" />
-                  <span>Please use <strong>{completedOrder.id}</strong> as your payment reference/narration, then send the payment receipt via WhatsApp below.</span>
+                  <span>Invoice & payment verification details will be shared directly via WhatsApp with your Order ID reference (<strong>{completedOrder.id}</strong>). Click the button below to complete.</span>
                 </div>
               </div>
             ) : (

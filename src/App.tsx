@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { CartProvider, useCart } from './context/CartContext';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -23,7 +24,8 @@ import {
   isAdminEmail,
   MODERN_AVATARS,
 } from './lib/auth';
-import { MessageCircle } from 'lucide-react';
+import { getBoutiqueWhatsAppNumber } from './lib/config';
+import { MessageCircle, ShoppingBag, Sparkles } from 'lucide-react';
 import { formatNaira } from './lib/format';
 
 function ShopContent() {
@@ -40,7 +42,19 @@ function ShopContent() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const { isCheckoutOpen, closeCheckout, lastAddedItem, dismissToast } = useCart();
+  // Cart Context & Flying animation effect
+  const { isCheckoutOpen, closeCheckout, lastAddedItem, dismissToast, openCart, cartBumpCount } = useCart();
+  const [flyingParticle, setFlyingParticle] = useState<{ id: number } | null>(null);
+
+  useEffect(() => {
+    if (cartBumpCount > 0) {
+      setFlyingParticle({ id: cartBumpCount });
+      const timer = setTimeout(() => {
+        setFlyingParticle(null);
+      }, 750);
+      return () => clearTimeout(timer);
+    }
+  }, [cartBumpCount]);
 
   // Load products
   const loadProducts = async () => {
@@ -176,7 +190,7 @@ function ShopContent() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#111111]">
+    <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#111111] relative">
       {/* Navigation Header */}
       <Header
         currentView={currentView}
@@ -203,8 +217,12 @@ function ShopContent() {
       {currentView === 'admin' ? (
         <AdminDashboard
           onBackToShop={() => setCurrentView('shop')}
-          onProductsUpdated={loadProducts}
+          isAdminLoggedIn={Boolean(session?.isAdmin)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onAdminLogout={handleSignOut}
           adminEmail={session?.email || 'savyzeus101@gmail.com'}
+          onProductsUpdated={loadProducts}
+          onAdminLoginSuccess={handleLoginSuccess}
         />
       ) : (
         <main className="flex-1">
@@ -258,31 +276,46 @@ function ShopContent() {
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="py-20 text-center bg-white border border-[#E5E5E5] p-8 space-y-3">
-                <p className="text-lg font-serif text-[#111111]">No products found</p>
-                <p className="text-xs text-[#737373] max-w-md mx-auto">
-                  We could not find any luxury items matching your current filters. Try changing your search query or view all categories.
-                </p>
+                <p className="font-serif text-lg text-[#111111]">No luxury pieces match your selection.</p>
+                <p className="text-xs text-[#737373]">Try adjusting your search keywords or switching category filters.</p>
                 <button
                   onClick={() => {
                     setActiveCategory('all');
                     setSearchQuery('');
                   }}
-                  className="px-6 py-2.5 bg-[#111111] text-white text-xs uppercase tracking-widest font-medium hover:bg-black transition-all"
+                  className="mt-2 px-4 py-2 bg-[#111111] text-[#FAFAFA] text-xs uppercase tracking-wider font-medium hover:bg-black transition-colors"
                 >
-                  Reset Catalog
+                  View All Pieces
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-                {filteredProducts.map((product) => (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                {filteredProducts.map((prod) => (
                   <ProductCard
-                    key={product.id}
-                    product={product}
-                    onSelectProduct={handleSelectProduct}
+                    key={prod.id}
+                    product={prod}
+                    onOpenDetails={handleSelectProduct}
                   />
                 ))}
               </div>
             )}
+          </section>
+
+          {/* Boutique Brand Story / Atelier Craftsmanship */}
+          <section className="bg-white border-t border-[#E5E5E5] py-16">
+            <div className="max-w-4xl mx-auto px-4 text-center space-y-6">
+              <span className="text-[10px] tracking-[0.3em] uppercase text-[#C5A059] font-bold block">
+                Atelier Philosophy
+              </span>
+              <h2 className="text-3xl font-serif text-[#111111] font-light">
+                Uncompromising Nigerian Craftsmanship & Timeless Elegance
+              </h2>
+              <p className="text-xs sm:text-sm text-[#737373] leading-relaxed max-w-2xl mx-auto">
+                Every piece in Tifeh.s Place is personally inspected and selected to embody subtle prestige.
+                From hand-buffed calfskin shoes to meticulously sculpted jewelry and bespoke horology, we deliver
+                exceptional luxury directly across Nigeria and internationally.
+              </p>
+            </div>
           </section>
         </main>
       )}
@@ -333,14 +366,16 @@ function ShopContent() {
         onSessionUpdate={(updated) => setSession(updated)}
       />
 
-      {/* Floating WhatsApp Concierge Button */}
+      {/* Dynamic Floating WhatsApp Concierge Button */}
       <a
         id="floating-whatsapp-btn"
-        href="https://wa.me/2348120000000?text=Hello%20Tifeh's%20Place!%20I%20would%20like%20to%20inquire%20about%20your%20luxury%20collection."
+        href={`https://wa.me/${getBoutiqueWhatsAppNumber()}?text=${encodeURIComponent(
+          "Hello Tifeh's Place! I would like to inquire about your luxury collection."
+        )}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-5 right-5 z-40 p-3.5 bg-[#25D366] text-white rounded-full shadow-xl hover:scale-105 transition-all flex items-center gap-2 group"
-        title="Chat with Tifeh's Place on WhatsApp (+234)"
+        className="fixed bottom-5 right-5 z-40 p-3.5 bg-[#25D366] text-white rounded-full shadow-xl hover:scale-105 transition-all flex items-center gap-2 group cursor-pointer"
+        title={`Chat with Tifeh's Place on WhatsApp (+${getBoutiqueWhatsAppNumber()})`}
       >
         <MessageCircle size={22} />
         <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 text-xs uppercase tracking-wider font-semibold whitespace-nowrap">
@@ -348,11 +383,45 @@ function ShopContent() {
         </span>
       </a>
 
-      {/* Added to Bag Toast Notification */}
+      {/* Tiny Animated Particle flying to the Header Cart when added to bag */}
+      <AnimatePresence>
+        {flyingParticle && (
+          <motion.div
+            key={flyingParticle.id}
+            initial={{
+              position: 'fixed',
+              bottom: '60px',
+              left: '50%',
+              x: '-50%',
+              scale: 1.2,
+              opacity: 1,
+              zIndex: 9999,
+            }}
+            animate={{
+              bottom: 'calc(100vh - 45px)',
+              left: 'calc(100vw - 42px)',
+              x: 0,
+              scale: 0.25,
+              opacity: [1, 1, 0.9, 0],
+            }}
+            transition={{
+              duration: 0.65,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            className="pointer-events-none"
+          >
+            <div className="w-8 h-8 rounded-full bg-[#111111] text-[#C5A059] border-2 border-[#C5A059] shadow-2xl flex items-center justify-center ring-4 ring-[#C5A059]/30">
+              <ShoppingBag size={14} className="text-[#C5A059]" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Subtle Added to Bag Toast Notification with View Bag option */}
       {lastAddedItem && (
         <div className="fixed bottom-5 left-5 z-50 bg-[#111111] text-[#FAFAFA] border border-[#333333] shadow-2xl p-3.5 max-w-sm flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5 duration-300">
           <div className="flex items-center gap-2.5">
-            <div className="w-2 h-2 rounded-full bg-[#C5A059]" />
+            <div className="w-2 h-2 rounded-full bg-[#C5A059] shrink-0" />
             <div className="text-xs">
               <span className="font-semibold block">{lastAddedItem.product.name}</span>
               <span className="text-[10px] text-[#A3A3A3]">
@@ -360,12 +429,24 @@ function ShopContent() {
               </span>
             </div>
           </div>
-          <button
-            onClick={dismissToast}
-            className="text-[10px] uppercase tracking-wider px-2 py-1 bg-[#262626] hover:bg-[#333333] text-white"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => {
+                dismissToast();
+                openCart();
+              }}
+              className="text-[10px] uppercase tracking-wider px-2.5 py-1 bg-[#C5A059] text-[#111111] font-semibold hover:bg-[#D8B46E] transition-colors cursor-pointer"
+            >
+              View Bag
+            </button>
+            <button
+              onClick={dismissToast}
+              className="text-[10px] uppercase tracking-wider px-2 py-1 bg-[#262626] hover:bg-[#333333] text-[#A3A3A3] hover:text-white cursor-pointer"
+              title="Close notification"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
     </div>

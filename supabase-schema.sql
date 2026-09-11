@@ -45,9 +45,33 @@ CREATE TABLE IF NOT EXISTS public.orders (
 
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
 
+-- 3.1 CREATE 'profiles' TABLE (User profile persistence across sessions)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    avatar_url TEXT DEFAULT '',
+    phone TEXT DEFAULT '',
+    address TEXT DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
+
 -- 4. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Profiles: Public read, authenticated or matching client can insert/update
+DROP POLICY IF EXISTS "Public can view profiles" ON public.profiles;
+CREATE POLICY "Public can view profiles" ON public.profiles
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can manage profiles" ON public.profiles;
+CREATE POLICY "Users can manage profiles" ON public.profiles
+    FOR ALL USING (true);
 
 -- Products: Everyone can read products
 DROP POLICY IF EXISTS "Public can view products" ON public.products;
