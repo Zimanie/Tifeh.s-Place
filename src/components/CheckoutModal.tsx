@@ -5,28 +5,43 @@ import { orderService } from '../lib/supabase';
 import { Order, OrderItem } from '../types';
 import { formatNaira } from '../lib/format';
 
+import { UserSession } from '../lib/auth';
+
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOrderSuccess: (order: Order) => void;
+  currentUserSession?: UserSession | null;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
   onClose,
   onOrderSuccess,
+  currentUserSession,
 }) => {
   const { items, totalAmount, clearCart } = useCart();
 
   const [formData, setFormData] = useState({
-    name: '',
+    name: currentUserSession?.name || '',
     phone: '',
     whatsapp: '',
-    email: '',
+    email: currentUserSession?.email || '',
     deliveryAddress: '',
     paymentMethod: 'bank_transfer' as 'bank_transfer' | 'cash_on_delivery',
     notes: '',
   });
+
+  // Sync user profile when modal opens
+  React.useEffect(() => {
+    if (currentUserSession && isOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || currentUserSession.name || '',
+        email: prev.email || currentUserSession.email || '',
+      }));
+    }
+  }, [currentUserSession, isOpen]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);

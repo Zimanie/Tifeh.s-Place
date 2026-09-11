@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingBag, User, Menu, X, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { UserSession } from '../lib/auth';
 
 interface HeaderProps {
   currentView: 'shop' | 'admin' | 'product_detail';
@@ -10,6 +11,7 @@ interface HeaderProps {
   onSelectCategory: (cat: string) => void;
   isAdminLoggedIn: boolean;
   currentUserEmail: string | null;
+  currentUserSession?: UserSession | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectCategory,
   isAdminLoggedIn,
   currentUserEmail,
+  currentUserSession,
 }) => {
   const { totalItems, openCart } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -51,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onNavigate('shop');
                 onSelectCategory('all');
               }}
-              className="text-[#111111] hover:opacity-60 transition-opacity"
+              className="text-[#111111] hover:opacity-60 transition-opacity cursor-pointer"
             >
               Collection
             </button>
@@ -60,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onNavigate('shop');
                 onSelectCategory('new_arrivals');
               }}
-              className="text-[#111111] hover:opacity-60 transition-opacity flex items-center gap-1.5"
+              className="text-[#111111] hover:opacity-60 transition-opacity flex items-center gap-1.5 cursor-pointer"
             >
               <Sparkles size={13} className="text-[#C5A059]" />
               New Arrivals
@@ -68,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
         </div>
 
-        {/* Center: Brand Logo - perfectly aligned & strictly contained */}
+        {/* Center: Brand Logo */}
         <div
           className="flex-shrink-0 text-center cursor-pointer flex flex-col items-center justify-center px-1 sm:px-3"
           onClick={() => onNavigate('shop')}
@@ -81,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        {/* Right: Profile & Cart Actions only */}
+        {/* Right: Profile Avatar & Cart Actions */}
         <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-end min-w-0">
           {/* User Account / Profile */}
           <button
@@ -94,18 +97,26 @@ export const Header: React.FC<HeaderProps> = ({
                   : `Signed in as ${currentUserEmail}`
                 : 'Account Sign In / Register'
             }
-            className={`relative p-2 sm:p-2.5 rounded-full border transition-all flex items-center justify-center ${
+            className={`relative p-1 rounded-full border transition-all flex items-center justify-center cursor-pointer ${
               currentUserEmail
                 ? isAdminLoggedIn
-                  ? 'border-[#C5A059] text-[#111111] bg-[#C5A059]/10'
-                  : 'border-[#111111] text-[#111111] bg-white'
-                : 'border-[#E5E5E5] text-[#404040] hover:text-[#111111] hover:border-[#111111] bg-white'
+                  ? 'border-[#C5A059] ring-2 ring-[#C5A059]/30'
+                  : 'border-[#111111]'
+                : 'border-[#E5E5E5] text-[#404040] hover:text-[#111111] hover:border-[#111111] bg-white p-2 sm:p-2.5'
             }`}
             aria-label="User account"
           >
-            <User size={18} />
+            {currentUserSession?.avatar ? (
+              <img
+                src={currentUserSession.avatar}
+                alt={currentUserSession.name || 'User'}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
+              />
+            ) : (
+              <User size={18} />
+            )}
             {isAdminLoggedIn && (
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#C5A059] border-2 border-white rounded-full" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#C5A059] border-2 border-white rounded-full flex items-center justify-center" />
             )}
           </button>
 
@@ -114,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
             id="header-cart-btn"
             onClick={openCart}
             aria-label="Open shopping bag"
-            className="relative p-2 sm:p-2.5 bg-[#111111] text-[#FAFAFA] hover:bg-[#262626] rounded-full transition-all flex items-center justify-center"
+            className="relative p-2 sm:p-2.5 bg-[#111111] text-[#FAFAFA] hover:bg-[#262626] rounded-full transition-all flex items-center justify-center cursor-pointer"
           >
             <ShoppingBag size={18} />
             {totalItems > 0 && (
@@ -141,12 +152,13 @@ export const Header: React.FC<HeaderProps> = ({
                   onSelectCategory(link.cat);
                   setMobileMenuOpen(false);
                 }}
-                className="text-left text-sm py-1.5 text-[#111111] hover:text-[#C5A059] transition-colors"
+                className="text-left text-xs uppercase tracking-wider py-2 text-[#404040] hover:text-[#111111] font-medium"
               >
                 {link.label}
               </button>
             ))}
           </div>
+
           <div className="pt-3 border-t border-[#E5E5E5] flex flex-col gap-2">
             <button
               onClick={() => {
@@ -154,9 +166,9 @@ export const Header: React.FC<HeaderProps> = ({
                 onSelectCategory('new_arrivals');
                 setMobileMenuOpen(false);
               }}
-              className="text-left text-sm py-1 font-medium text-[#111111] flex items-center gap-2"
+              className="text-left text-xs uppercase tracking-wider text-[#C5A059] font-medium flex items-center gap-1.5"
             >
-              <Sparkles size={14} className="text-[#C5A059]" />
+              <Sparkles size={13} />
               New Arrivals
             </button>
           </div>

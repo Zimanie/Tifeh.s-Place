@@ -13,8 +13,16 @@ import { AuthModal } from './components/AuthModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { Footer } from './components/Footer';
 import { Product, Order } from './types';
-import { productService } from './lib/supabase';
-import { UserSession, getStoredSession, saveSession, clearSession } from './lib/auth';
+import { productService, supabase, isSupabaseConfigured } from './lib/supabase';
+import {
+  UserSession,
+  getStoredSession,
+  saveSession,
+  clearSession,
+  addRecentlyViewed,
+  isAdminEmail,
+  MODERN_AVATARS,
+} from './lib/auth';
 import { MessageCircle } from 'lucide-react';
 import { formatNaira } from './lib/format';
 
@@ -49,6 +57,62 @@ function ShopContent() {
 
   useEffect(() => {
     loadProducts();
+  }, []);
+
+  // Supabase Google Auth Session Listener
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    // Check existing Supabase session (handles Google OAuth redirect)
+    supabase.auth.getSession().then(({ data: { session: supaSession } }) => {
+      if (supaSession?.user) {
+        const user = supaSession.user;
+        const email = user.email || '';
+        const meta = user.user_metadata || {};
+        const name = meta.full_name || meta.name || email.split('@')[0];
+        const avatar = meta.avatar_url || meta.picture || MODERN_AVATARS[0];
+        const provider = user.app_metadata?.provider === 'google' ? 'google' : 'email';
+
+        const updatedSession: UserSession = {
+          id: user.id,
+          email,
+          name,
+          avatar,
+          isAdmin: isAdminEmail(email),
+          provider,
+        };
+        saveSession(updatedSession);
+        setSession(updatedSession);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, supaSession) => {
+      if (supaSession?.user) {
+        const user = supaSession.user;
+        const email = user.email || '';
+        const meta = user.user_metadata || {};
+        const name = meta.full_name || meta.name || email.split('@')[0];
+        const avatar = meta.avatar_url || meta.picture || MODERN_AVATARS[0];
+        const provider = user.app_metadata?.provider === 'google' ? 'google' : 'email';
+
+        const updatedSession: UserSession = {
+          id: user.id,
+          email,
+          name,
+          avatar,
+          isAdmin: isAdminEmail(email),
+          provider,
+        };
+        saveSession(updatedSession);
+        setSession(updatedSession);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Filter and sort products
@@ -91,22 +155,11 @@ function ShopContent() {
     console.log('Order registered successfully:', newOrder.id);
   };
 
-  const handleLoginSuccess = (
-    email: string,
-    isAdmin: boolean,
-    name?: string,
-    provider: 'email' | 'google' = 'email'
-  ) => {
-    const newSession: UserSession = {
-      email,
-      name: name || email.split('@')[0],
-      isAdmin,
-      provider,
-    };
+  const handleLoginSuccess = (newSession: UserSession) => {
     saveSession(newSession);
     setSession(newSession);
 
-    if (isAdmin) {
+    if (newSession.isAdmin) {
       setCurrentView('admin');
     }
   };
@@ -115,6 +168,11 @@ function ShopContent() {
     clearSession();
     setSession(null);
     setCurrentView('shop');
+  };
+
+  const handleSelectProduct = (product: Product) => {
+    setSelectedProduct(product);
+    addRecentlyViewed(product.id);
   };
 
   return (
@@ -138,31 +196,21 @@ function ShopContent() {
         }}
         isAdminLoggedIn={Boolean(session?.isAdmin)}
         currentUserEmail={session ? session.email : null}
+        currentUserSession={session}
       />
 
       {/* Main Content Router: Shop vs Admin */}
       {currentView === 'admin' ? (
         <AdminDashboard
-          onBackToShop={() => {
-            setCurrentView('shop');
-            loadProducts(); // refresh catalog when coming back
-          }}
-          isAdminLoggedIn={Boolean(session?.isAdmin)}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
-          onAdminLogout={handleSignOut}
-          adminEmail={session?.email}
+          onBackToShop={() => setCurrentView('shop')}
+          onProductsUpdated={loadProducts}
+          adminEmail={session?.email || 'savyzeus101@gmail.com'}
         />
       ) : (
         <main className="flex-1">
           {/* Hero Section */}
           <Hero
-            onShopClick={() => {
-              setActiveCategory('all');
-              const el = document.getElementById('catalog-section');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
-            onExploreNewArrivals={() => {
-              setActiveCategory('new_arrivals');
+            onShopNow={() => {
               const el = document.getElementById('catalog-section');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
@@ -171,72 +219,77 @@ function ShopContent() {
           {/* New Arrivals Horizontal Carousel */}
           <NewArrivalsCarousel
             products={products}
-            onSelectProduct={(prod) => setSelectedProduct(prod)}
+            onSelectProduct={handleSelectProduct}
           />
 
-          {/* Category Filter & Product Grid Section */}
-          <section id="catalog-section" className="py-12 md:py-16">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-              {/* Category Tabs & Controls */}
-              <CategoryFilter
-                activeCategory={activeCategory}
-                onSelectCategory={(cat) => setActiveCategory(cat)}
-                searchQuery={searchQuery}
-                onSearchChange={(q) => setSearchQuery(q)}
-                sortBy={sortBy}
-                onSortChange={(s) => setSortBy(s)}
-              />
-
-              {/* Product Grid */}
-              {isLoading ? (
-                <div className="py-24 text-center">
-                  <div className="inline-block w-8 h-8 border-2 border-[#111111] border-t-transparent rounded-full animate-spin mb-4" />
-                  <p className="text-xs uppercase tracking-[0.2em] text-[#737373]">
-                    Curating luxury catalog...
-                  </p>
-                </div>
-              ) : filteredProducts.length === 0 ? (
-                <div className="py-20 text-center bg-white border border-[#E5E5E5] p-8 space-y-3">
-                  <h3 className="text-xl font-serif text-[#111111]">No Items Found</h3>
-                  <p className="text-xs text-[#737373] max-w-md mx-auto">
-                    We couldn't find any items matching "{searchQuery}" in this category. Try adjusting your search term or view all items.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery('');
-                      setActiveCategory('all');
-                    }}
-                    className="mt-2 px-6 py-2.5 bg-[#111111] text-white text-xs uppercase tracking-wider font-medium hover:bg-black transition-all"
-                  >
-                    View Complete Collection
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-[#737373] mb-4">
-                    <span>Showing {filteredProducts.length} Luxury Item{filteredProducts.length === 1 ? '' : 's'}</span>
-                    <span>Direct Nigerian Delivery</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                    {filteredProducts.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        onSelectProduct={(p) => setSelectedProduct(p)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+          {/* Main Boutique Catalog */}
+          <section id="catalog-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+            <div className="text-center mb-8">
+              <span className="text-[10px] tracking-[0.3em] uppercase text-[#737373] font-semibold block mb-1">
+                Curated Luxury
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-serif text-[#111111]">
+                {activeCategory === 'all'
+                  ? 'The Entire Collection'
+                  : activeCategory === 'new_arrivals'
+                  ? 'Exclusive New Arrivals'
+                  : `${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} Gallery`}
+              </h2>
+              <div className="w-12 h-px bg-[#111111] mx-auto mt-4" />
             </div>
+
+            {/* Filter and Search Bar */}
+            <CategoryFilter
+              activeCategory={activeCategory}
+              onSelectCategory={setActiveCategory}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+            />
+
+            {/* Products Grid */}
+            {isLoading ? (
+              <div className="py-20 flex flex-col items-center justify-center space-y-4">
+                <div className="w-8 h-8 border-2 border-[#111111] border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs uppercase tracking-widest text-[#737373]">
+                  Loading Boutique Collection...
+                </p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="py-20 text-center bg-white border border-[#E5E5E5] p-8 space-y-3">
+                <p className="text-lg font-serif text-[#111111]">No products found</p>
+                <p className="text-xs text-[#737373] max-w-md mx-auto">
+                  We could not find any luxury items matching your current filters. Try changing your search query or view all categories.
+                </p>
+                <button
+                  onClick={() => {
+                    setActiveCategory('all');
+                    setSearchQuery('');
+                  }}
+                  className="px-6 py-2.5 bg-[#111111] text-white text-xs uppercase tracking-widest font-medium hover:bg-black transition-all"
+                >
+                  Reset Catalog
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onSelectProduct={handleSelectProduct}
+                  />
+                ))}
+              </div>
+            )}
           </section>
         </main>
       )}
 
       {/* Footer */}
       <Footer
-        onSelectCategory={(cat) => {
+        onCategorySelect={(cat) => {
           setCurrentView('shop');
           setActiveCategory(cat);
           window.scrollTo({ top: 400, behavior: 'smooth' });
@@ -251,6 +304,7 @@ function ShopContent() {
         isOpen={isCheckoutOpen}
         onClose={closeCheckout}
         onOrderSuccess={handleOrderSuccess}
+        currentUserSession={session}
       />
 
       {/* Product Details Modal */}
@@ -274,6 +328,9 @@ function ShopContent() {
         onSignOut={handleSignOut}
         currentView={currentView}
         onNavigate={(view) => setCurrentView(view)}
+        allProducts={products}
+        onSelectProduct={handleSelectProduct}
+        onSessionUpdate={(updated) => setSession(updated)}
       />
 
       {/* Floating WhatsApp Concierge Button */}

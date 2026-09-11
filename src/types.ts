@@ -49,7 +49,10 @@ export interface Order {
 }
 
 export interface UserSession {
+  id?: string;
   email: string;
   isAdmin: boolean;
-  name?: string;
+  name: string;
+  provider: 'email' | 'google';
+  avatar?: string;
 }
