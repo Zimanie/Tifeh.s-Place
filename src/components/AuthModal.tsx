@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
-import { X, User, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
-import {
-  signInWithEmail,
-  signUpWithEmail,
-  signInWithGoogleOAuth,
-  isAdminEmail,
-  UserSession,
-  MODERN_AVATARS,
-} from '../lib/auth';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { X, ArrowRight, AlertCircle } from 'lucide-react';
+import { signInWithGoogleOAuth, UserSession } from '../lib/auth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -16,117 +8,26 @@ interface AuthModalProps {
   onLoginSuccess: (session: UserSession) => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({
-  isOpen,
-  onClose,
-  onLoginSuccess,
-}) => {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [errorMsg, setErrorMsg] = useState('');
-  const [noticeMsg, setNoticeMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Google Sign-In prompt states
-  const [isGooglePromptOpen, setIsGooglePromptOpen] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('savyzeus101@gmail.com');
-  const [googleNameInput, setGoogleNameInput] = useState('');
 
   if (!isOpen) return null;
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setNoticeMsg('');
-
-    if (!email || !password) {
-      setErrorMsg('Please enter both your email address and password.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      if (mode === 'signup') {
-        const res = await signUpWithEmail(email, password, fullName);
-        if (res.error) {
-          setErrorMsg(res.error);
-        } else {
-          if (res.message) {
-            setNoticeMsg(res.message);
-          }
-          if (res.session) {
-            onLoginSuccess(res.session);
-            onClose();
-          }
-        }
-      } else {
-        const res = await signInWithEmail(email, password);
-        if (res.error) {
-          setErrorMsg(res.error);
-        } else if (res.session) {
-          onLoginSuccess(res.session);
-          onClose();
-        }
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred during authentication.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleGoogleClick = async () => {
     setErrorMsg('');
-    setNoticeMsg('');
-
-    // If Supabase OAuth is configured, initiate real Google OAuth redirect
-    if (isSupabaseConfigured) {
-      setIsSubmitting(true);
-      const res = await signInWithGoogleOAuth();
-      setIsSubmitting(false);
-      if (res.error) {
-        // If Google provider not yet enabled in Supabase console, show direct input fallback
-        setIsGooglePromptOpen(true);
-      }
-    } else {
-      setIsGooglePromptOpen(true);
-    }
-  };
-
-  const handleDirectGoogleLogin = () => {
-    if (!googleEmailInput || !googleEmailInput.includes('@')) {
-      setErrorMsg('Please enter a valid Gmail address.');
-      return;
-    }
-    const cleanEmail = googleEmailInput.trim().toLowerCase();
-    const isAdmin = isAdminEmail(cleanEmail);
-    const derivedName =
-      googleNameInput.trim() ||
-      cleanEmail
-        .split('@')[0]
-        .replace(/[._]/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-
-    // Generate high-resolution avatar based on user info
-    const randomAvatar = MODERN_AVATARS[Math.floor(Math.random() * MODERN_AVATARS.length)];
-
-    const session: UserSession = {
-      email: cleanEmail,
-      name: derivedName,
-      isAdmin,
-      provider: 'google',
-      avatar: randomAvatar,
-    };
-
     setIsSubmitting(true);
-    setTimeout(() => {
+
+    try {
+      const res = await signInWithGoogleOAuth();
+      if (res.error) {
+        setErrorMsg(res.error);
+        setIsSubmitting(false);
+      }
+    } catch {
+      setErrorMsg('Unable to continue with Google. Please try again.');
       setIsSubmitting(false);
-      setIsGooglePromptOpen(false);
-      onLoginSuccess(session);
-      onClose();
-    }, 250);
+    }
   };
 
   return (
@@ -140,16 +41,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <X size={18} />
         </button>
 
-        {/* Header */}
         <div className="text-center mb-6">
           <span className="text-[10px] uppercase tracking-[0.25em] text-[#737373] font-semibold block mb-1">
             Tifeh.s Place Atelier
           </span>
-          <h2 className="text-2xl font-serif text-[#111111]">
-            {mode === 'login' ? 'Client & Admin Sign In' : 'Create an Account'}
-          </h2>
+          <h2 className="text-2xl font-serif text-[#111111]">Sign In</h2>
           <p className="text-xs text-[#737373] mt-1 max-w-xs mx-auto">
-            Sign in with your email or Gmail to track order history, save favorites, and access boutique administration.
+            Continue with Google to track order history, save favorites, and access your account.
           </p>
         </div>
 
@@ -160,214 +58,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {noticeMsg && (
-          <div className="mb-4 p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2">
-            <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
-            <span>{noticeMsg}</span>
-          </div>
-        )}
-
-        {/* Google / Gmail Sign In Button */}
-        {!isGooglePromptOpen ? (
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={handleGoogleClick}
-              disabled={isSubmitting}
-              className="w-full py-3 px-4 bg-white border border-[#D4D4D4] hover:border-[#111111] hover:bg-[#F9F9F9] text-[#111111] text-xs font-medium transition-all flex items-center justify-center gap-3 shadow-2xs cursor-pointer"
-            >
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.34 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.16 0 9.98 0 12s.45 3.84 1.24 5.42l4.04-3.15z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                />
-              </svg>
-              <span>{mode === 'login' ? 'Continue with Google (Gmail)' : 'Register with Google (Gmail)'}</span>
-            </button>
-
-            <div className="relative flex items-center justify-center">
-              <div className="border-t border-[#E5E5E5] w-full" />
-              <span className="bg-white px-3 text-[10px] uppercase tracking-widest text-[#737373] relative shrink-0">
-                Or with email & password
-              </span>
-            </div>
-          </div>
-        ) : (
-          /* Google Account Prompt Box */
-          <div className="mb-5 p-4 bg-[#F9F9F9] border border-[#E5E5E5] space-y-3 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase tracking-wider font-semibold text-[#111111] flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z" />
-                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.34 24 12 24z" />
-                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.16 0 9.98 0 12s.45 3.84 1.24 5.42l4.04-3.15z" />
-                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
-                </svg>
-                Google Profile Information
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsGooglePromptOpen(false)}
-                className="text-[11px] text-[#737373] hover:text-[#111111]"
-              >
-                Cancel
-              </button>
-            </div>
-
-            <p className="text-xs text-[#737373]">
-              Authenticate with your Google Account. Your name and profile will be generated automatically:
-            </p>
-
-            <div className="space-y-2.5">
-              <div>
-                <label className="block text-[10px] uppercase tracking-wider text-[#525252] mb-1">
-                  Gmail Address
-                </label>
-                <input
-                  type="email"
-                  value={googleEmailInput}
-                  onChange={(e) => setGoogleEmailInput(e.target.value)}
-                  placeholder="savyzeus101@gmail.com"
-                  className="w-full px-3 py-2 bg-white border border-[#D4D4D4] text-xs focus:outline-none focus:border-[#111111]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase tracking-wider text-[#525252] mb-1">
-                  Display Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={googleNameInput}
-                  onChange={(e) => setGoogleNameInput(e.target.value)}
-                  placeholder="e.g. Savy Zeus"
-                  className="w-full px-3 py-2 bg-white border border-[#D4D4D4] text-xs focus:outline-none focus:border-[#111111]"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleDirectGoogleLogin}
-                className="w-full py-2.5 bg-[#111111] hover:bg-black text-white text-xs uppercase tracking-wider font-medium transition-all flex items-center justify-center gap-2"
-              >
-                <span>Continue with this Google Account</span>
-                <ArrowRight size={13} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Email & Password Form */}
-        <form onSubmit={handleEmailSubmit} className="space-y-3.5 text-xs mt-4">
-          {mode === 'signup' && (
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-[#111111] font-medium mb-1">
-                Full Name
-              </label>
-              <div className="relative">
-                <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737373]" />
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Tifeh Balogun"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 bg-[#FAFAFA] border border-[#E5E5E5] focus:outline-none focus:border-[#111111]"
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-[11px] uppercase tracking-wider text-[#111111] font-medium mb-1">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737373]" />
-              <input
-                type="email"
-                required
-                placeholder="name@gmail.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 bg-[#FAFAFA] border border-[#E5E5E5] focus:outline-none focus:border-[#111111]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] uppercase tracking-wider text-[#111111] font-medium mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737373]" />
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 bg-[#FAFAFA] border border-[#E5E5E5] focus:outline-none focus:border-[#111111]"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-3 bg-[#111111] text-[#FAFAFA] text-xs uppercase tracking-[0.2em] font-medium hover:bg-black transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
-          >
-            <span>{isSubmitting ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}</span>
-            <ArrowRight size={14} />
-          </button>
-        </form>
-
-        {/* Toggle between Login and Signup */}
-        <div className="mt-5 text-center text-xs text-[#737373]">
-          {mode === 'login' ? (
-            <p>
-              Don't have an account?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('signup');
-                  setErrorMsg('');
-                  setNoticeMsg('');
-                }}
-                className="text-[#111111] font-semibold underline underline-offset-2 hover:opacity-80"
-              >
-                Register Here
-              </button>
-            </p>
-          ) : (
-            <p>
-              Already registered?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('login');
-                  setErrorMsg('');
-                  setNoticeMsg('');
-                }}
-                className="text-[#111111] font-semibold underline underline-offset-2 hover:opacity-80"
-              >
-                Sign In
-              </button>
-            </p>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={handleGoogleClick}
+          disabled={isSubmitting}
+          className="w-full py-3 px-4 bg-white border border-[#D4D4D4] hover:border-[#111111] hover:bg-[#F9F9F9] text-[#111111] text-xs font-medium transition-all flex items-center justify-center gap-3 shadow-2xs cursor-pointer disabled:opacity-50"
+        >
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z" />
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.34 24 12 24z" />
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.16 0 9.98 0 12s.45 3.84 1.24 5.42l4.04-3.15z" />
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+          </svg>
+          <span>{isSubmitting ? 'Redirecting to Google...' : 'Continue with Google'}</span>
+          {!isSubmitting && <ArrowRight size={14} />}
+        </button>
       </div>
     </div>
   );

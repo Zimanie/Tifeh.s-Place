@@ -219,16 +219,7 @@ export async function signInWithEmail(
     return { session };
   }
 
-  // Local fallback
-  const session: UserSession = {
-    email: cleanEmail,
-    name: cleanEmail.split('@')[0],
-    avatar: MODERN_AVATARS[0],
-    isAdmin: isAdminEmail(cleanEmail),
-    provider: 'email',
-  };
-  saveSession(session);
-  return { session };
+  return { session: null as any, error: 'Email and password sign-in is unavailable. Continue with Google.' };
 }
 
 /**
@@ -304,7 +295,7 @@ export async function signInWithGoogleOAuth(): Promise<{ error?: string }> {
         redirectTo: redirectUrl,
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent',
+          prompt: 'select_account',
         },
       },
     });
